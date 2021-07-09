@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+
+    <head>
+        <style>
+            body {
+  width: 97vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+#tooltip {
+  display: none;
+  position: absolute;
+  background-color: #FFF;
+  color: #000;
+  padding: 10px;
+  border: 2px solid #00F;
+  flex-direction: column;
+  align-items: center;
+}
+
+#tooltip h2 {
+  margin: 0;
+  padding: 0;
+}
+
+path {
+  stroke: #fff;
+  stroke-width: .5px;
+}
+
+path:hover {
+  fill: red;
+}
+            
+        </style>
+        
+    </head>
+    <body>
+        <script src="https://d3js.org/d3.v7.min.js"></script>
+        <script src="https://unpkg.com/topojson@3"></script>
+        <script src="eduData.js"></script>
+        <script src="map.js"></script>
+        <script>
+
+const W = 960, H = 600;
+
+d3.select("body")
+.append("h1")
+.attr("id","title")
+.text("United States Educational Attainment");
+
+d3.select("body")
+.append("p")
+.attr("id","description")
+.text("Percentage of adults age 25 and older with a bachelor's degree or higher (2010-2014)");
+
+const svg = d3.select("body")
+  .append("svg")
+  .attr("height", H)
+  .attr("width", W);
+
+const tooltip = d3.select("body")
+.append("div")
+.attr("id","tooltip");
+
+function popup(event) {
+  const name = d3.select(this).attr("name");
+  const state = d3.select(this).attr("state");
+  const percent = d3.select(this).attr("edu");
+  
+  tooltip.html(`<h2>${name}, ${state}</h2><p>${percent}</p>`)
+  .attr('data-education',percent)
+  .style("display", "flex")
+  .style("top",event.pageY)
+  .style("left",`${event.pageX + 20}px`);
+}
+
+function popdown() {
+  tooltip.style("display", "none");
+}
+
+function fillColor(percent) {
+    const green = (16 - (Math.floor(percent/10) + 1) * 2).toString(16);
+    return `#0${green}0`;
+}
+
+var geojson = topojson.feature(data, data.objects.counties);
+  
+var projection = d3.geoIdentity()
+.fitSize([W,H],geojson);
+
+const moData = eduData.reduce((acc,obj) => {
+    acc[obj.fips] = {
+        state: obj.state,
+        name: obj["area_name"],
+        edu: obj.bachelorsOrHigher
+    };
+    return acc;
+}, {});
+    
+svg.selectAll("path")
+    .data(geojson.features)
+    .enter()
+    .append("path")
+    .attr('data-fips', (d) => d.id)
+    .attr('data-education', (d) => moData[d.id].edu)
+    .attr('id', (d) => d.id)
+    .attr("name", (d) => moData[d.id].name)
+    .attr("state", (d) => moData[d.id].state)
+    .attr("edu", (d) => moData[d.id].edu)
+    .attr('d', d3.geoPath(projection))
+    .attr("fill", (d) => fillColor(moData[d.id].edu))
+    .attr("class","county")
+    .on("mouseover", popup)
+    .on("mouseout", popdown);
+
+const lScale = d3.scaleLinear()
+    .domain([0,70])
+    .range([0.6*W,0.9*W]);
+const lAxis = d3.axisBottom(lScale)
+    .ticks(8)
+    .tickFormat((t) => `${t}%`);
+const legend = svg.append("g")
+    .attr("id","legend")
+for (let i=0; i<7; i++) {
+    legend.append("rect")
+        .attr("x",0.6*W + (0.3/7)*W*i)
+        .attr("y", 0.1*H)
+        .attr("width", (0.3/7)*W)
+        .attr("height", 5)
+        .attr("fill", `#0${(16 - (i+1)*2).toString(16)}0`);
+}
+legend.append("g")
+    .attr("transform",`translate(0,${0.1*H})`)
+    .call(lAxis);
+
+
+        </script>
+        <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+    </body>
+</html>
